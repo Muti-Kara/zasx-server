@@ -1,0 +1,61 @@
+version: '3'
+
+services:
+  nginx:
+    image: nginx:latest
+    container_name: nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./nginx/html:/etc/nginx/html
+      - ./certbot:/etc/letsencrypt
+    extra_hosts:
+        - "host.docker.internal:host-gateway"
+
+  certbot:
+    image: certbot/certbot
+    container_name: certbot
+    volumes:
+      - ./certbot:/etc/letsencrypt
+    environment:
+      - CERTBOT_ALLOW_NON_INTERACTIVE=true
+      - CERTBOT_HTTP_PORT=80
+    depends_on:
+      - nginx
+    entrypoint: /bin/sh -c "trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;"
+
+  torch:
+    container_name: torch_jupyter
+    build: jupyter
+    runtime: nvidia
+    command: jupyter notebook --notebook-dir=/workspace --ip='*' --no-browser --allow-root --NotebookApp.token=${PASSWORD}
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    volumes:
+      - /home/yuio/workspace/notebooks:/workspace
+    ports:
+      - "8888:8888"
+
+  code-server:
+    container_name: code-server
+    build: code
+    ports:
+      - "8080:8080"
+    user: 1000:1000
+    volumes:
+      - /home/yuio/workspace:/home/coder/projects
+      - /opt:/opt
+
+      - /home/yuio/zasx/code/config:/home/coder/.config
+      - /home/yuio/zasx/code/bashrc:/home/coder/.bashrc
+
+      - code-data:/home/coder/.local
+    environment:
+      - PASSWORD=${PASSWORD}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+  
+volumes:
+  code-data:

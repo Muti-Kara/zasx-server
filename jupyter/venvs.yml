@@ -1,0 +1,14 @@
+venvs:
+  - name: openai
+    packages:
+      - langchain
+      - openai
+
+  - name: huggingface
+    packages:
+      - bitsandbytes
+      - transformers
+      - accelerate
+      - datasets
+      - seqeval
+      - peft
