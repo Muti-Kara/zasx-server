@@ -2,30 +2,46 @@ version: '3'
 
 services:
   nginx:
-    image: nginx:latest
     container_name: nginx
-    ports:
-      - "80:80"
-      - "443:443"
+    image: nginx:latest
     volumes:
       - ./nginx/conf.d:/etc/nginx/conf.d
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf
       - ./nginx/html:/etc/nginx/html
-      - ./certbot:/etc/letsencrypt
+      - ./nginx/certs:/etc/nginx/certs
     extra_hosts:
         - "host.docker.internal:host-gateway"
+    ports:
+      - "80:80"
+      - "443:443"
 
-  certbot:
-    image: certbot/certbot
-    container_name: certbot
-    volumes:
-      - ./certbot:/etc/letsencrypt
+  db:
+    image: postgres:alpine
     environment:
-      - CERTBOT_ALLOW_NON_INTERACTIVE=true
-      - CERTBOT_HTTP_PORT=80
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_USER=postgres
+      - POSTGRES_DB=nextcloud
+    restart: always
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  nextcloud: 
+    container_name: zasx-nextcloud
+    image: nextcloud:latest
+    restart: always
+    environment:
+      - POSTGRES_HOST=db
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_USER=postgres
+      - POSTGRES_DB=nextcloud
+    ports:
+      - "1000:80"
+    volumes: 
+      - nc-data:/var/www/html
     depends_on:
-      - nginx
-    entrypoint: /bin/sh -c "trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;"
+      - db
 
   torch:
     container_name: torch_jupyter
@@ -43,7 +59,7 @@ services:
     container_name: code-server
     build: code
     ports:
-      - "8080:8080"
+      - "8090:8080"
     user: 1000:1000
     volumes:
       - /home/yuio/workspace:/home/coder/projects
@@ -56,6 +72,8 @@ services:
     environment:
       - PASSWORD=${PASSWORD}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
-  
+
 volumes:
   code-data:
+  db-data:
+  nc-data:
